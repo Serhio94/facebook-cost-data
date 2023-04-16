@@ -1,0 +1,158 @@
+// @ts-nocheck
+
+function runReport() {
+  /**
+   * TODO(developer): Uncomment this variable and replace with your
+   *   Google Analytics 4 property ID before running the sample.
+   */
+  var doc = SpreadsheetApp.getActiveSpreadsheet();
+  var sProperty = doc.getSheetByName('Properties');
+  var data = sProperty.getDataRange().getValues();
+  
+  data.forEach(function (row) {
+  const propertyId = row
+
+    try {
+    const metric = AnalyticsData.newMetric();
+    metric.name = 'advertiserAdCost';
+
+    const metric2 = AnalyticsData.newMetric();
+    metric2.name = 'totalRevenue';
+
+    const dimension = AnalyticsData.newDimension();
+    dimension.name = 'date';
+
+    const dimension2 = AnalyticsData.newDimension();
+    dimension2.name = 'sessionSourceMedium';
+
+    const dateRange = AnalyticsData.newDateRange();
+    dateRange.startDate = '2023-01-01';
+    dateRange.endDate = 'today';
+
+    const request = AnalyticsData.newRunReportRequest();
+    request.dimensions = [dimension, dimension2];
+    request.metrics = [metric, metric2];
+    request.dateRanges = dateRange;
+
+    const report = AnalyticsData.Properties.runReport(request,
+        'properties/' + propertyId);
+    if (!report.rows) {
+      console.log('No rows returned.');
+      return;
+    }
+
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(row) 
+
+    // Append the headers.
+    const dimensionHeaders = report.dimensionHeaders.map(
+        (dimensionHeader) => {
+          return dimensionHeader.name;
+        });
+    const metricHeaders = report.metricHeaders.map(
+        (metricHeader) => {
+          return metricHeader.name;
+        });
+    const headers = [...dimensionHeaders, ...metricHeaders];
+
+    sheet.appendRow(headers);
+
+    // Append the results.
+    const rows = report.rows.map((row) => {
+      const dimensionValues = row.dimensionValues.map(
+          (dimensionValue) => {
+            return dimensionValue.value;
+          });
+      const metricValues = row.metricValues.map(
+          (metricValues) => {
+            return metricValues.value;
+          });
+      return [...dimensionValues, ...metricValues];
+    });
+
+    sheet.getRange(2, 1, report.rows.length, headers.length)
+        .setValues(rows);
+    }  catch (e) {
+    // TODO (Developer) - Handle exception
+    console.log('Failed with error: %s', e.error);
+  }
+});
+  }
+
+  // sheet url
+const SPREADSHEET_URL = SpreadsheetApp.getActive().getUrl();
+const ss = SpreadsheetApp.openByUrl(SPREADSHEET_URL);
+
+// ad account ID
+const AD_ACCOUNT_ID = '2925846997735988';
+
+// user access token linked to a Facebook app
+const TOKEN = 'EAAGZB03DKvswBAD46L0p74EQgResuQNuTnBML2RqUqNJ8UwROr0CBqQQIlkjrDTyQSkQ7KVbJOWZCd3mNEh5Ke0kqX2mi7la4NwZBI66aWcy04GR6Q7YQUdTSgpXGljJXHfaIFphCtGuUTqVzbZClSs5hjz43ZCqMqEmTC2wDlyXY4nUKIGac';
+
+// variable from config tab
+const LEVEL = 'account';
+const START_DATE = '2023-01-01';
+const END_DATE = '2023-12-31';
+const FIELDS = 'spend';
+
+
+function requestReport() {
+
+
+  // Builds the Facebook Ads Insights API URL
+  const facebookUrl = `https://graph.facebook.com/v16.0/act_${AD_ACCOUNT_ID}/insights?level=${LEVEL}&fields=${FIELDS}&time_increment=1&time_range={'since':'${START_DATE}','until':'${END_DATE}'}&access_token=${TOKEN}`;
+  Logger.log(facebookUrl)
+  const encodedFacebookUrl = encodeURI(facebookUrl);
+  const options = {
+    'method': 'post'
+  };
+
+  // Fetches & parses the URL 
+  const fetchRequest = UrlFetchApp.fetch(encodedFacebookUrl, options);
+  const results = JSON.parse(fetchRequest.getContentText());
+
+  // Caches the report run ID
+  const reportId = results.report_run_id;
+  const cache = CacheService.getScriptCache();
+  const cached = cache.get('campaign-report-id');
+
+  if (cached != null) {
+    cache.put('campaign-report-id', [], 1);
+    Utilities.sleep(1001);
+    cache.put('campaign-report-id', reportId, 21600);
+  } else {
+    cache.put('campaign-report-id', reportId, 21600);
+  };
+  Logger.log(cache.get('campaign-report-id'));
+  return reportId
+
+}
+
+// name of the sheet where the report will be
+var TAB_NAME = 'FB cost'
+
+function downloadReport() {
+
+
+  var sheet = ss.getSheetByName(TAB_NAME);
+
+  // Clears the sheet
+  sheet.getRange('A:P').clearContent();
+
+  // Gets the Facebook report run ID
+  const reportId = requestReport();
+
+  // sleep 30 seconds until report is ready
+  Utilities.sleep(30000);
+  // Fetches the report as a csv file
+  const url = `https://www.facebook.com/ads/ads_insights/export_report?report_run_id=${reportId}&format=csv&access_token=${TOKEN}`;
+  var fetchRequest = UrlFetchApp.fetch(url);
+  const results = Utilities.parseCsv(fetchRequest);
+
+    // Extract the csv file to the sheet
+  sheet.getRange(1, 1, results.length, results[0].length).setValues(results);
+  
+  //KAS Time Zone
+  var timeZone = 'GMT+3';
+  date = Utilities.formatDate(new Date(), timeZone, "MM-dd-yyyy | HH:mm:ss");
+  '04-16-2023 | 14:25:57';
+}
