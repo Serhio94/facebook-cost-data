@@ -86,7 +86,7 @@ const ss = SpreadsheetApp.openByUrl(SPREADSHEET_URL);
 const AD_ACCOUNT_ID = '2925846997735988';
 
 // user access token linked to a Facebook app
-const TOKEN = 'EAAGZB03DKvswBAD46L0p74EQgResuQNuTnBML2RqUqNJ8UwROr0CBqQQIlkjrDTyQSkQ7KVbJOWZCd3mNEh5Ke0kqX2mi7la4NwZBI66aWcy04GR6Q7YQUdTSgpXGljJXHfaIFphCtGuUTqVzbZClSs5hjz43ZCqMqEmTC2wDlyXY4nUKIGac';
+const TOKEN = 'EAAGZB03DKvswBAHTzne3VDCJkKiQv8vYV8mri7GeEswzKNZAJSbew47NVAEsy2hZBr3UfKtRuwLZCEFmgln0tV9p983naMmQ0w1ZCu8NEecljZBekt6ZApjfNKQn4CUwATTJGUVLhRSTJw1NyridZAwqhwoC81HrrVZCzLhA9iVvHBiASkPkSL3F4';
 
 // variable from config tab
 const LEVEL = 'account';
