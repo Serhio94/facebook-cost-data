@@ -1,0 +1,78 @@
+const SPREADSHEET_URL = SpreadsheetApp.getActive().getUrl();
+const ss = SpreadsheetApp.openByUrl(SPREADSHEET_URL);
+
+const AD_ACCOUNT_ID = '2925846997735988';
+const TOKEN = 'EAAGZB03DKvswBAF3i2vgVQ0nDsdXvTjlJYZAZA8fw5wGakLsnxKQiLYh7W9iiC2RoZCAiFeyhIwcCDlpfBxZBN2S9GXSRkefrDvnOikqaIuHACLr9tbdg8aLFQ4ZCAHluyi9EubtnYexeQ9Be8INIhQmEWFYnMrBzhsUZB7OtoETZB7wphkVzDXJ';
+
+const LEVEL = 'account';
+const START_DATE = '2023-01-01';
+const END_DATE = '2023-12-31';
+const FIELDS = 'spend';
+
+function requestReport() {
+  const facebookUrl = `https://graph.facebook.com/v16.0/act_${AD_ACCOUNT_ID}/insights?level=${LEVEL}&fields=${FIELDS}&time_increment=1&time_range={'since':'${START_DATE}','until':'${END_DATE}'}&access_token=${TOKEN}`;
+  Logger.log(facebookUrl)
+  const encodedFacebookUrl = encodeURI(facebookUrl);
+  const options = {
+    'method': 'post'
+  };
+
+  const fetchRequest = UrlFetchApp.fetch(encodedFacebookUrl, options);
+  const results = JSON.parse(fetchRequest.getContentText());
+
+  const reportId = results.report_run_id;
+  const cache = CacheService.getScriptCache();
+  const cached = cache.get('campaign-report-id');
+
+  if (cached != null) {
+    cache.put('campaign-report-id', [], 1);
+    Utilities.sleep(1001);
+    cache.put('campaign-report-id', reportId, 21600);
+  } else {
+    cache.put('campaign-report-id', reportId, 21600);
+  };
+  Logger.log(cache.get('campaign-report-id'));
+  return reportId
+}
+
+var TAB_NAME = 'FB cost';
+
+function convertEurToBgn(eurAmount) {
+  var exchangeRate = 1.95583;
+  return eurAmount * exchangeRate;
+}
+
+function downloadReport() {
+  var sheet = ss.getSheetByName(TAB_NAME);
+  sheet.getRange('A:P').clearContent();
+
+  const reportId = requestReport();
+  Utilities.sleep(30000);
+  
+  const url = `https://www.facebook.com/ads/ads_insights/export_report?report_run_id=${reportId}&format=csv&access_token=${TOKEN}`;
+  var fetchRequest = UrlFetchApp.fetch(url);
+  const results = Utilities.parseCsv(fetchRequest);
+
+  // Write the CSV data to the sheet
+  sheet.getRange(1, 1, results.length, results[0].length).setValues(results);
+
+  // Set the header value for column D to "BGN"
+  sheet.getRange(1, 4).setValue("BGN");
+
+  // Assuming the cost data is in column C and you want the BGN value in column D
+  const costColumnIndex = 2;
+  const bgnColumnIndex = 3;
+
+  // Convert the EUR cost data to BGN and write it to column D
+  for (var i = 1; i < results.length; i++) {
+    var costEur = parseFloat(results[i][costColumnIndex]);
+    if (!isNaN(costEur)) {
+      var costBgn = convertEurToBgn(costEur);
+      sheet.getRange(i + 1, bgnColumnIndex + 1).setValue(costBgn.toFixed(2));
+    }
+  }
+  
+  var timeZone = 'GMT+3';
+  date = Utilities.formatDate(new Date(), timeZone, "MM-dd-yyyy | HH:mm:ss");
+}
+
